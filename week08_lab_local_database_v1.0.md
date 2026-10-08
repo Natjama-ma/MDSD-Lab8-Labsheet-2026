@@ -56,9 +56,68 @@
 บันทึกโค้ดที่ Gemini ตอบกลับมาที่ด้านล่าง
 
 ```text
-บันทึกผลลัพธ์ที่นี่
-```
+นี่คือการออกแบบโครงสร้างตาราง (Table Definitions) สำหรับแพ็กเกจ Drift ใน Flutter ตามโจทย์ที่คุณต้องการ พร้อมคำอธิบายเหตุผลในการเลือกชนิดข้อมูล (Column Type) ของแต่ละคอลัมน์ครับ
+1. ตารางเก็บรายการสินค้าที่ผู้ใช้กดถูกใจ (Liked Items)
+ตารางนี้ออกแบบมาเพื่อให้สามารถแสดงผลข้อมูลเบื้องต้น (ชื่อ, ราคา, รูปภาพ) ได้ทันทีจากฐานข้อมูลในเครื่อง โดยไม่ต้องรอโหลดหรือเรียก API ซ้ำ และรองรับการเรียงลำดับตามเวลาที่กดถูกใจล่าสุด
+code
 
+Dart
+import 'package:drift/drift.dart';
+
+@DataClassName('LikedItem')
+class LikedItems extends Table {
+  // 1. อ้างอิงจาก ID สินค้าที่เป็นตัวเลข (ใช้เป็น Primary Key ของตารางนี้ด้วย)
+  IntColumn get productId => integer()();
+
+  // 2. ชื่อสินค้า
+  TextColumn get title => text()();
+
+  // 3. ราคา (เลือกใช้ Real เพราะราคาสินค้าอาจมีจุดทศนิยม หรือเลือก Integer หากเก็บเป็นหน่วยสตางค์)
+  RealColumn get price => real()();
+
+  // 4. รูปภาพ (เก็บ URL หรือ Path ของรูปภาพ เพื่อนำไปแสดงผลได้ทันที)
+  TextColumn get imageUrl => text()();
+
+  // 5. เวลาที่กดถูกใจล่าสุด (ใช้สำหรับจัดเรียง เช่น เรียงจากล่าสุดไปเก่าสุด)
+  // กำหนดค่าเริ่มต้นเป็นเวลาปัจจุบัน (currentDateAndTime) ให้โดยอัตโนมัติ
+  DateTimeColumn get likedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @ionais
+  List<Set<Column>> get uniqueKeys => [
+        {productId}
+      ]; // ป้องกันการกดถูกใจสินค้าชิ้นเดิมซ้ำซ้อน
+}
+
+```
+~~~
+2. ตารางเก็บร่างประกาศขายสินค้าที่ AI แนะนำ (Draft Listings)
+ตารางนี้ใช้บันทึกข้อมูลร่างประกาศที่ได้จาก AI แทนการเก็บใน State ชั่วคราว เพื่อป้องกันข้อมูลหายเมื่อปิดแอป และต้องสามารถติดตามเวลาที่แก้ไขล่าสุดได้
+code
+
+Dart
+import 'package:drift/drift.dart';
+
+@DataClassName('DraftListing')
+class DraftListings extends Table {
+  // Primary Key แบบ Auto-increment สำหรับร่างประกาศแต่ละชิ้นในเครื่อง
+  IntColumn get id => integer().autoIncrement()();
+
+  // 1. ชื่อประกาศ
+  TextColumn get title => text()();
+
+  // 2. หมวดหมู่สินค้า
+  TextColumn get category => text()();
+
+  // 3. คำบรรยาย (AI สร้างให้ อาจมีความยาวค่อนข้างมาก)
+  TextColumn get description => text()();
+
+  // 4. Path ของรูปภาพในเครื่อง (เก็บเป็น Text สำหรับเก็บ File Path เช่น /data/user/0/...)
+  TextColumn get imagePath => text()();
+
+  // 5. เวลาที่แก้ไขล่าสุด (ใช้อัปเดตทุกครั้งที่มีการแก้ข้อมูลร่าง)
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+~~~
 
 ### ขั้นตอนที่ 1.2: ตรวจสอบและเทียบกับหลักการในบทเรียน 🧠 คิดเอง
 
