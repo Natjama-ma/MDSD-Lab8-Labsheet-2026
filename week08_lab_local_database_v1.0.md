@@ -55,12 +55,13 @@
 
 บันทึกโค้ดที่ Gemini ตอบกลับมาที่ด้านล่าง
 
+```text
 นี่คือการออกแบบโครงสร้างตาราง (Table Definitions) สำหรับแพ็กเกจ Drift ใน Flutter ตามโจทย์ที่คุณต้องการ พร้อมคำอธิบายเหตุผลในการเลือกชนิดข้อมูล (Column Type) ของแต่ละคอลัมน์ครับ
-
 1. ตารางเก็บรายการสินค้าที่ผู้ใช้กดถูกใจ (Liked Items)
 ตารางนี้ออกแบบมาเพื่อให้สามารถแสดงผลข้อมูลเบื้องต้น (ชื่อ, ราคา, รูปภาพ) ได้ทันทีจากฐานข้อมูลในเครื่อง โดยไม่ต้องรอโหลดหรือเรียก API ซ้ำ และรองรับการเรียงลำดับตามเวลาที่กดถูกใจล่าสุด
+code
 
-```dart
+Dart
 import 'package:drift/drift.dart';
 
 @DataClassName('LikedItem')
@@ -81,17 +82,19 @@ class LikedItems extends Table {
   // กำหนดค่าเริ่มต้นเป็นเวลาปัจจุบัน (currentDateAndTime) ให้โดยอัตโนมัติ
   DateTimeColumn get likedAt => dateTime().withDefault(currentDateAndTime)();
 
-  @override
+  @ionais
   List<Set<Column>> get uniqueKeys => [
         {productId}
       ]; // ป้องกันการกดถูกใจสินค้าชิ้นเดิมซ้ำซ้อน
 }
-```
 
+```
+~~~
 2. ตารางเก็บร่างประกาศขายสินค้าที่ AI แนะนำ (Draft Listings)
 ตารางนี้ใช้บันทึกข้อมูลร่างประกาศที่ได้จาก AI แทนการเก็บใน State ชั่วคราว เพื่อป้องกันข้อมูลหายเมื่อปิดแอป และต้องสามารถติดตามเวลาที่แก้ไขล่าสุดได้
+code
 
-```dart
+Dart
 import 'package:drift/drift.dart';
 
 @DataClassName('DraftListing')
@@ -114,7 +117,7 @@ class DraftListings extends Table {
   // 5. เวลาที่แก้ไขล่าสุด (ใช้อัปเดตทุกครั้งที่มีการแก้ข้อมูลร่าง)
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
-```
+~~~
 
 ### ขั้นตอนที่ 1.2: ตรวจสอบและเทียบกับหลักการในบทเรียน 🧠 คิดเอง
 
@@ -126,24 +129,23 @@ class DraftListings extends Table {
 - Gemini กำหนดให้คอลัมน์ที่อ้างอิงสินค้า (`itemId`) ห้ามมีค่าซ้ำกัน (`.unique()`) หรือไม่ ถ้าไม่ได้กำหนด ให้เพิ่มเอง เพราะถ้าไม่มีข้อบังคับนี้ ผู้ใช้กดหัวใจสินค้าชิ้นเดียวกันซ้ำได้ไม่จำกัด ทำให้ตาราง Favorites มีแถวซ้ำกันสะสมไปเรื่อย ๆ
 
 > ✅ **Checkpoint 1.1** บันทึกคำตอบจากคำถามด้านบนทั้ง 4 ข้อ พร้อมแนบภาพหน้าจอผลลัพธ์จาก Gemini
+```text
+1. การกำหนด Primary Key
+ตาราง `DraftListings` ทาง Gemini กำหนด `id` เป็น `integer().autoIncrement()()` ถูกต้องตามบทเรียน แต่ในตาราง `LikedItems` (Favorites) Gemini ไปใช้ `productId` เป็น Primary Key โดยตรง
+จึงยังไม่ตรงกับในบทเรียนที่แนะนำให้สร้าง `id` แบบ auto-increment เป็น Primary Key 
 
-```markdown
-1. การกำหนด Primary Key ให้แต่ละตาราง:
-   - ตารางร่างประกาศขาย (DraftListings): Gemini กำหนด `IntColumn get id => integer().autoIncrement()();` ซึ่งถูกต้องตรงตามที่บทเรียนแนะนำ
-   - ตารางรายการถูกใจ (LikedItems): Gemini กำหนด `productId` เป็นตัวเลขธรรมดาแล้วใช้ `uniqueKeys` โดยไม่ได้สร้าง surrogate key (`id`) แบบ auto-increment แยกต่างหาก ซึ่งตามบทเรียนหัวข้อ 8.3 ควรมี Primary Key แยกที่เป็น Auto-increment Integer (`IntColumn get id => integer().autoIncrement()();`) และแยกเก็บ `itemId` ไว้ต่างหาก
+2. ชนิดข้อมูลของราคาสินค้า
+Gemini เลือกใช้ `RealColumn` (`real()()`) ถูกต้องตามบทเรียน เพราะเทียบเท่ากับชนิดข้อมูล `double` ในภาษา Dart เหมาะกับการเก็บตัวเลขทศนิยมอย่างราคาสินค้า
 
-2. ชนิดข้อมูลของราคาสินค้า:
-   - Gemini เลือกใช้ `RealColumn get price => real()();` ซึ่งตรงกับที่บทเรียนแนะนำ (แปลงเป็นชนิดข้อมูล `double` ใน Dart) สำหรับเก็บราคาสินค้าที่มีจุดทศนิยม
+3. การเก็บสำเนาข้อมูลกับหลักการ Offline-first
+Gemini เสนอให้เก็บสำเนาข้อมูลทั้ง `title`, `price` และ `imageUrl` ไว้ในตาราง Favorites จะสอดคล้องกับหลักการ Offline-first ในหัวข้อ 8.6 เพราะถ้าเก็บแค่ `itemId` แล้วต้องยิง API ใหม่ทุกครั้ง
+แล้วอุปกรณ์ไม่มีอินเทอร์เน็ต แอปจะไม่สามารถแสดงรายการสินค้าโปรดได้เลย การสำเนาข้อมูลไว้ในเครื่องจะทำให้เปิดดูข้อมูลได้ตลอดเวลา
 
-3. การเก็บสำเนาข้อมูลเทียบกับหลักการ Offline-first (หัวข้อ 8.6):
-   - Gemini แนะนำให้เก็บสำเนาข้อมูล เช่น ชื่อ ราคา รูปภาพ ไว้ในตาราง LikedItems โดยตรง ซึ่งสอดคล้องกับหลักการ Offline-first อย่างยิ่ง เพราะหากเก็บเพียง ID สินค้า แล้วต้องยิง Fake Store API ซ้ำทุกครั้ง เมื่อผู้ใช้ไม่มีอินเทอร์เน็ต จะไม่สามารถดูรายการโปรดที่บันทึกไว้ได้เลย การทำ De-normalization สำเนาข้อมูลไว้ใน Local DB จึงทำให้แอปแสดงผลรายการโปรดได้ทันทีโดยไม่ต้องพึ่งพาเครือข่าย
+4. การป้องกันข้อมูลซ้ำ (unique)
+Gemini ไม่ได้ใช้คำสั่ง `.unique()` ที่ตัวคอลัมน์โดยตรง แต่ไปใช้การเซ็ต `uniqueKeys` แทน ถ้าปรับตามโครงสร้างบทเรียนที่มี `id` เป็น Primary Key อยู่แล้ว จะต้องเพิ่มคำสั่ง `.unique()` ให้กับคอลัมน์ที่อ้างอิงสินค้า
+เพื่อป้องกันไม่ให้ผู้ใช้กดถูกใจสินค้าชิ้นเดิมซ้ำจนเกิดแถวข้อมูลซ้ำซ้อนในตาราง
 
-4. ข้อกำหนดไม่ให้ค่าซ้ำ (.unique()):
-   - Gemini จัดการป้องกันค่าซ้ำผ่าน `@override List<Set<Column>> get uniqueKeys => [{productId}];` ซึ่งป้องกันข้อมูลซ้ำได้ แต่เพื่อให้โค้ดกระชับและตรงตามบทเรียน เราปรับแก้มาเป็นการระบุ `.unique()` ที่ตัวคอลัมน์โดยตรงคือ `IntColumn get itemId => integer().unique()();` เพื่อทำงานร่วมกับ `mode: InsertMode.insertOrIgnore` ตอน Insert ไม่ให้แอปเกิด Error crash หากผู้ใช้กดหัวใจซ้ำ
 ```
-
-<!-- ภาพหน้าจอ Google AI Studio แสดง Prompt และผลลัพธ์จาก Gemini -->
-<!-- ตัวอย่าง: <img src="URL_รูปภาพ" alt="Gemini Schema Output" /> หรือ ![Gemini Schema](ชื่อไฟล์ภาพ.png) -->
 
 ---
 
@@ -241,65 +243,8 @@ dart run build_runner build --delete-conflicting-outputs
 
 capture หน้าจอผลลัพธ์คำสั่ง `dart run build_runner build` จากขั้นตอนที่ 3.2 ที่แสดงว่าสร้างไฟล์สำเร็จ (ไม่มี Error เรื่อง Class ชื่อซ้ำ) จากนั้นเปิดไฟล์ main.dart ที่แก้ตามขั้นตอนที่ 3.3 โดย ยังไม่ต้องรันแอปในจุดนี้ เพราะ VS Code จะขีดเส้นสีแดงใต้ FavoritesRepositoryDrift และ ListingDraftRepositoryDrift (ยังไม่มี Class จริง จะเขียน Class นี้ในส่วนที่ 4-5) และถ้าสั่งรันตอนนี้แอปจะ Error ทันทีเพราะคอมไพล์ไม่ผ่าน ถือเป็นเรื่องปกติ — จะกลับมารันแอปได้จริงอีกครั้งหลังทำ Checkpoint 4.1 และ 5.1 เสร็จ
 
-```markdown
-### ผลลัพธ์การรันคำสั่ง `dart run build_runner build`
-```bash
-$ dart run build_runner build --delete-conflicting-outputs
-...
-drift_dev on 60 inputs; lib/database/app_database.dart
-drift_dev on 60 inputs: 1 output; lib/database/tables.dart
-source_gen:combining_builder on 30 inputs; lib/database/app_database.dart
-Built with build_runner/aot; wrote 30 outputs.
-```
-- ระบบทำการ generate โค้ดลงไฟล์ `lib/database/app_database.g.dart` สำเร็จเรียบร้อย
-- ไม่พบข้อผิดพลาดเรื่อง Class ซ้ำ เนื่องจากใช้ `@DataClassName('ListingDraftRow')` บน `ListingDrafts`
+<img width="1592" height="806" alt="image" src="https://github.com/user-attachments/assets/c11887e4-177e-4705-aafb-25e599fbf8f5" />
 
-### โค้ด `lib/main.dart` ที่เชื่อมต่อ AppDatabase ผ่าน Dependency Injection:
-```dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'database/app_database.dart';
-import 'models/cart_model.dart';
-import 'repositories/item_repository_api.dart';
-import 'repositories/favorites_repository_drift.dart';
-import 'repositories/listing_draft_repository_drift.dart';
-import 'screens/main_scaffold.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  final db = AppDatabase();
-
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => CartModel(),
-      child: MyApp(database: db),
-    ),
-  );
-}
-
-class MyApp extends StatelessWidget {
-  final AppDatabase database;
-
-  const MyApp({super.key, required this.database});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Campus Marketplace',
-      debugShowCheckedModeBanner: false,
-      home: MainScaffold(
-        itemRepository: ItemRepositoryApi(),
-        favoritesRepository: FavoritesRepositoryDrift(database),
-        draftRepository: ListingDraftRepositoryDrift(database),
-      ),
-    );
-  }
-}
-```
-```
-
-![ผลลัพธ์คำสั่ง dart run build_runner build](checkpoint3_1.png)
 
 ---
 
@@ -424,14 +369,22 @@ items: const [
 
 > ✅ **Checkpoint 4.1** รันแอปแล้วทดสอบ: (ก) กดหัวใจที่สินค้า 3 ชิ้นจากหน้า Home (ข) สลับไป Tab "รายการโปรด" เห็นครบทั้ง 3 ชิ้น (ค) ปิดแอปให้สนิท (Force Stop หรือปัดออกจาก Recent Apps) แล้วเปิดใหม่ กลับไปที่ Tab รายการโปรดอีกครั้ง ถ่ายภาพหน้าจอ (ข) และ (ค) เทียบกัน ต้องแสดงรายการเดิมครบทุกชิ้น พร้อมทดสอบกดลบ (Remove) 1 ชิ้น แล้วปิดเปิดแอปใหม่อีกครั้งเพื่อยืนยันว่าการลบก็ถูกบันทึกถาวรเช่นกัน (ง) กลับไปหน้า Home แล้วกดหัวใจซ้ำที่สินค้าชิ้นเดิมอีกครั้ง (ชิ้นที่ยังไม่ได้ลบ) แล้วตรวจสอบที่ Tab รายการโปรดว่ายังแสดงสินค้าชิ้นนั้นแค่แถวเดียว ไม่ซ้ำเป็น 2 แถว และแอปไม่ Error
 
-```text
-ผลการทดสอบ Checkpoint 4.1:
-1. การกดถูกใจสินค้า: เมื่อกดไอคอนหัวใจที่หน้าหลัก (Home) ไอคอนเปลี่ยนเป็นสีแดง (Icons.favorite) และมี SnackBar แจ้งเตือนว่า "บันทึก [ชื่อสินค้า] เป็นรายการโปรดแล้ว"
-2. การแสดงผลหน้ารายการโปรด: เมื่อสลับไปที่แท็บ 3 (รายการโปรด) พบรายการสินค้าที่กดถูกใจไว้ครบ 3 ชิ้น พร้อมรูปภาพ ชื่อ และราคา โดยเรียงลำดับจากล่าสุดไปเก่าสุดตาม addedAt
-3. การคงอยู่ของข้อมูล (Persistence): ปิดแอปพลิเคชันอย่างสมบูรณ์ (Force Close) แล้วเปิดขึ้นมาใหม่ ข้อมูลทั้ง 3 รายการยังคงแสดงผลได้ครบถ้วน ไม่สูญหาย เนื่องจากถูกจัดเก็บลง SQLite ผ่าน Drift
-4. การลบรายการ: เมื่อกดไอคอนถังขยะที่สินค้ารายการใดรายการหนึ่ง สินค้าถูกลบออกจากตาราง FavoriteItems และหน้าจออัปเดตทันที เมื่อปิดและเปิดแอปใหม่ ข้อมูลที่ถูกลบก็ไม่ปรากฏกลับมาอีก
-5. การป้องกันข้อมูลซ้ำ (Unique Constraint): เมื่อกลับไปหน้า Home แล้วกดหัวใจซ้ำที่สินค้าชิ้นเดิม ตัวระบบใช้ mode: InsertMode.insertOrIgnore ทำให้แอปไม่เกิดข้อผิดพลาด UNIQUE constraint failed และในตาราง FavoriteItems ยังคงมีเพียง 1 รายการ ไม่เกิดข้อมูลซ้ำซ้อน
-```
+(ก) กดหัวใจที่สินค้า 3 ชิ้นจากหน้า Home
+
+<img width="332" height="737" alt="image" src="https://github.com/user-attachments/assets/23d2adbd-a644-4133-80ed-6a250f667b8e" />
+
+
+
+(ข) สลับไป Tab "รายการโปรด" เห็นครบทั้ง 3 ชิ้น
+
+<img width="332" height="730" alt="image" src="https://github.com/user-attachments/assets/df718dd0-ea47-49a4-af07-58dedf245c31" />
+
+
+
+(ค) ปิดแอปให้สนิท (Force Stop หรือปัดออกจาก Recent Apps) แล้วเปิดใหม่ กลับไปที่ Tab รายการโปรดอีกครั้ง
+
+<img width="331" height="732" alt="image" src="https://github.com/user-attachments/assets/39f15aeb-238e-4fa5-b47f-78cc57304471" />
+
 
 ---
 
@@ -479,13 +432,25 @@ class SellItemPage extends StatefulWidget {
 
 > ✅ **Checkpoint 5.1** รันแอปแล้วทำตามลำดับนี้: 1. สร้างร่างประกาศใหม่ผ่าน Tab "ลงประกาศขาย" ด้วยความช่วยเหลือของ AI เหมือนสัปดาห์ที่ 7 2. กดยืนยันร่าง 3. กดปุ่มไอคอนเข้าหน้า "ร่างประกาศของฉัน" แล้วเห็นร่างที่เพิ่งสร้าง 4. ปิดแอปให้สนิทแล้วเปิดใหม่ กลับเข้าหน้า "ร่างประกาศของฉัน" อีกครั้ง ถ่ายภาพหน้าจอทั้ง 4 ขั้นตอนนี้แนบส่ง เพื่อพิสูจน์ว่าร่างไม่หายไปแม้ปิดแอปแล้ว 
 
-```text
-ผลการทดสอบ Checkpoint 5.1:
-1. การสร้างร่างประกาศ: เลือกรูปภาพและใช้ Gemini Vision AI ช่วยวิเคราะห์ข้อมูล ได้หัวข้อ หมวดหมู่ และรายละเอียดสินค้า จากนั้นสามารถแก้ไขในช่องข้อความได้
-2. การยืนยันร่าง: กดปุ่ม "ยืนยันร่างประกาศ" ข้อมูลถูกบันทึกลงในตาราง ListingDrafts ด้วย ListingDraftRepositoryDrift พร้อม path รูปภาพในเครื่อง และมี SnackBar แจ้งว่า "บันทึกร่างประกาศเรียบร้อยแล้ว"
-3. การเข้าดูหน้าประวัติร่าง: เมื่อกดไอคอน History (ประวัติ) ที่ AppBar ของหน้าลงประกาศขาย ระบบเปิดหน้า MyDraftsPage และแสดงการ์ดร่างประกาศที่เพิ่งบันทึกไป พร้อมรูปภาพขนาดย่อ ชื่อ หมวดหมู่ คำบรรยาย และเวลาอัปเดตล่าสุด
-4. การคงอยู่ของข้อมูลร่างหลังปิดแอป: ปิดแอปพลิเคชันอย่างสมบูรณ์แล้วเปิดใหม่ กดเข้าหน้า "ร่างประกาศของฉัน" พบว่าข้อมูลร่างประกาศยังคงอยู่ครบถ้วน แสดงผลได้ถูกต้องเหมือนเดิม
-```
+1. ลงประกาศขาย
+
+<img width="331" height="723" alt="image" src="https://github.com/user-attachments/assets/b9f8d6e1-bb35-4f38-8dca-5aa942690885" />
+
+
+2. กดยืนยันร่าง
+
+<img width="327" height="728" alt="image" src="https://github.com/user-attachments/assets/081805de-c5e4-45a4-b50d-0bcf8bcdd8d9" />
+
+
+3. กดปุ่มไอคอนเข้าหน้า "ร่างประกาศของฉัน" แล้วเห็นร่างที่เพิ่งสร้า
+
+<img width="335" height="735" alt="image" src="https://github.com/user-attachments/assets/1ad98741-61c7-4104-9be9-33acc8630efd" />
+
+
+4. ปิดแอปให้สนิทแล้วเปิดใหม่ กลับเข้าหน้า "ร่างประกาศของฉัน" อีกครั้ง
+
+<img width="333" height="727" alt="image" src="https://github.com/user-attachments/assets/1b6e1c73-ef2c-4308-b310-3c7c43df795e" />
+
 
 ---
 
@@ -497,15 +462,10 @@ class SellItemPage extends StatefulWidget {
 
 > ✅ **Checkpoint 6.1** ถ่ายภาพหน้าจอที่แสดงให้เห็นว่า Tab รายการโปรดและหน้าร่างประกาศยังคงแสดงข้อมูลได้ตามปกติแม้ไม่มีอินเทอร์เน็ตเลย (ส่วน Tab หน้าหลักที่ดึงจาก Fake Store API คาดว่าจะแสดง Error ตามปกติ เพราะยังไม่ได้ทำ Local Cache ให้หน้านั้น) 
 
-```text
-ผลการทดสอบ Checkpoint 6.1 (Offline-First):
-1. สถานะเมื่อปิดอินเทอร์เน็ต (Offline / Airplane Mode):
-   - หน้าหลัก (HomePage): ไม่สามารถโหลดรายการสินค้าจาก Fake Store REST API ได้ แสดงข้อความผิดพลาดตามคาด เนื่องจากยังไม่มี Local Cache สำหรับหน้าหลัก
-   - หน้า "รายการโปรด" (FavoritesPage): ยังคงสามารถโหลดและแสดงรายการสินค้าทั้งหมดที่เคยกดถูกใจไว้ได้ตามปกติ เนื่องจากข้อมูล (ID, ชื่อ, ราคา, ลิงก์รูป) ถูกดึงตรงมาจากฐานข้อมูล SQLite ในเครื่อง (Drift ORM) โดยไม่ต้องพึ่งพาเครือข่าย
-   - หน้าร่างประกาศ (MyDraftsPage): ยังคงแสดงรายการร่างประกาศที่เคยบันทึกไว้ได้ครบถ้วน พร้อมไฟล์รูปภาพที่บันทึกไว้ใน Local Storage ของเครื่อง
-2. สรุปตามหลักการ Offline-first:
-   การออกแบบสถาปัตยกรรมแบบ Offline-first ช่วยให้ผู้ใช้งานยังคงสามารถเข้าถึงข้อมูลสำคัญและทำงานบางอย่างต่อได้แม้ไม่มีอินเทอร์เน็ต หรืออยู่ในสภาวะอับสัญญาณ
-```
+<img width="323" height="695" alt="image" src="https://github.com/user-attachments/assets/5255cd24-8b6f-4758-b5d1-4da1f7f256f5" />
+<img width="320" height="706" alt="image" src="https://github.com/user-attachments/assets/5aa03dcb-f964-41ed-971a-78426e18ef35" />
+<img width="317" height="697" alt="image" src="https://github.com/user-attachments/assets/0c801d88-aab2-48a8-9c2c-ed30df53277f" />
+
 
 ---
 
